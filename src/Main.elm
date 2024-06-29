@@ -69,7 +69,7 @@ update msg model =
                     [ Http.header "Authorization" ("Bearer " ++ model.bearerToken)
                     ]
                 , url = "http://localhost:3000/communicate"
-                , body = Http.jsonBody (Json.Encode.object [ ( "input", Json.Encode.string input ) ])
+                , body = Http.stringBody "application/text" input
                 , expect = Http.expectString GotResponse
                 , timeout = Nothing
                 , tracker = Nothing
@@ -419,6 +419,14 @@ parseIcfpHelper input =
                                     Err err
 
                                 Ok acc ->
+                                    let
+                                        _ =
+                                            Debug.log "code - int - char"
+                                                ( char
+                                                , Char.toCode char
+                                                , Dict.get (Char.toCode char) charLookup
+                                                )
+                                    in
                                     case Dict.get (Char.toCode char) charLookup of
                                         Nothing ->
                                             Err ("Un-mappable char: " ++ String.fromChar char)
