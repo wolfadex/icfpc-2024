@@ -274,8 +274,14 @@ view model =
                                                         (\expr ->
                                                             case expr of
                                                                 String _ ->
-                                                                    Html.code []
-                                                                        [ Html.text (prettyPrint expr) ]
+                                                                    Markdown.toHtmlWith
+                                                                        { githubFlavored = Just { tables = True, breaks = True }
+                                                                        , defaultHighlighting = Nothing
+                                                                        , sanitize = False
+                                                                        , smartypants = True
+                                                                        }
+                                                                        []
+                                                                        (prettyPrint expr)
 
                                                                 _ ->
                                                                     Html.text (prettyPrint expr)
