@@ -6,9 +6,31 @@ body {
   font-family: Arial, sans-serif;
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px;
   background: linear-gradient(to top, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.inputContainer {
+  position: sticky;
+  top: 0;
+  padding: 10px 0;
+  z-index: 10;
+  margin-bottom: 10px;
+}
+
+.responsesContainer {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 10px;
+  max-height: calc(100vh - 250px);
+  border: 2px solid #ff9a9e;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
@@ -58,6 +80,7 @@ button:disabled {
   padding: 10px;
   margin-bottom: 10px;
 }
+
 .responseInput {
   font-weight: bold;
 }
@@ -70,6 +93,7 @@ button:disabled {
   color: #ff0000;
   margin-bottom: 10px;
 }
+
 .bearerTokenInput {
   margin-bottom: 20px;
 }

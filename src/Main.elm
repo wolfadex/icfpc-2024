@@ -267,34 +267,36 @@ view model =
     , body =
         [ Html.div []
             [ Html.h1 [] [ Html.text "ICFP Contest 2024" ]
-            , Html.div [ Css.bearerTokenInput ]
-                [ Html.input
-                    [ Html.Attributes.type_ "password"
-                    , Html.Attributes.value model.bearerToken
-                    , Html.Attributes.placeholder "Enter bearer token"
-                    , Html.Events.onInput TokenChanged
+            , Html.div [ Css.inputContainer ]
+                [ Html.div [ Css.bearerTokenInput ]
+                    [ Html.input
+                        [ Html.Attributes.type_ "password"
+                        , Html.Attributes.value model.bearerToken
+                        , Html.Attributes.placeholder "Enter bearer token"
+                        , Html.Events.onInput TokenChanged
+                        ]
+                        []
                     ]
-                    []
+                , Html.form [ Html.Events.onSubmit (SubmitInput model.input) ]
+                    [ Html.input
+                        [ Html.Attributes.value model.input
+                        , Html.Attributes.placeholder "Enter text here"
+                        , Html.Events.onInput InputChanged
+                        ]
+                        []
+                    , Html.button
+                        [ Html.Attributes.type_ "submit"
+                        , Html.Attributes.disabled (List.any (\( _, state ) -> state == Loading) model.responses)
+                        ]
+                        [ Html.text "Submit" ]
+                    , Html.button
+                        [ Html.Attributes.type_ "button"
+                        , Html.Events.onClick (ParseInput model.input)
+                        ]
+                        [ Html.text "Parse" ]
+                    ]
                 ]
-            , Html.form [ Html.Events.onSubmit (SubmitInput model.input) ]
-                [ Html.input
-                    [ Html.Attributes.value model.input
-                    , Html.Attributes.placeholder "Enter text here"
-                    , Html.Events.onInput InputChanged
-                    ]
-                    []
-                , Html.button
-                    [ Html.Attributes.type_ "submit"
-                    , Html.Attributes.disabled (List.any (\( _, state ) -> state == Loading) model.responses)
-                    ]
-                    [ Html.text "Submit" ]
-                , Html.button
-                    [ Html.Attributes.type_ "button"
-                    , Html.Events.onClick (ParseInput model.input)
-                    ]
-                    [ Html.text "Parse" ]
-                ]
-            , Html.div []
+            , Html.div [ Css.responsesContainer ]
                 (List.map
                     (\( input, state ) ->
                         Html.div [ Css.response ]
