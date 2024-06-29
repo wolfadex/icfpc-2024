@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Css
@@ -13,7 +13,7 @@ import Result.Extra
 import String.Extra
 
 
-main : Program () Model Msg
+main : Program (Maybe String) Model Msg
 main =
     Browser.document
         { init = init
@@ -44,11 +44,11 @@ type alias Model =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : Maybe String -> ( Model, Cmd Msg )
+init maybeBearerToken =
     ( { input = ""
       , responses = []
-      , bearerToken = ""
+      , bearerToken = Maybe.withDefault "" maybeBearerToken
       , scoreboard = ScoreError (Http.BadBody "Click Refresh")
       }
     , Cmd.none
@@ -89,6 +89,9 @@ submitInputRequest bearerToken input toMsg =
         , timeout = Nothing
         , tracker = Nothing
         }
+
+
+port saveBearerToken : String -> Cmd msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -137,7 +140,9 @@ update msg model =
                     ( model, Cmd.none )
 
         TokenChanged newToken ->
-            ( { model | bearerToken = newToken }, Cmd.none )
+            ( { model | bearerToken = newToken }
+            , saveBearerToken newToken
+            )
 
         ParseInput input ->
             ( { model
@@ -813,3 +818,8 @@ icfpEncode expr =
 
         _ ->
             Err ()
+
+
+
+-- To implement
+-- [lambdaman] * [spaceship] * [3d] * [efficiency] * [language_test]
