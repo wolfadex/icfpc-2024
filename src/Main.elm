@@ -7,7 +7,9 @@ import Html exposing (Html)
 import Html.Attributes
 import Html.Events
 import Http
-import Json.Encode as Encode
+import Json.Encode
+import Result.Extra
+import String.Extra
 
 
 main : Program () Model Msg
@@ -67,7 +69,7 @@ update msg model =
                     [ Http.header "Authorization" ("Bearer " ++ model.bearerToken)
                     ]
                 , url = "http://localhost:3000/communicate"
-                , body = Http.jsonBody (Encode.object [ ( "input", Encode.string input ) ])
+                , body = Http.jsonBody (Json.Encode.object [ ( "input", Json.Encode.string input ) ])
                 , expect = Http.expectString GotResponse
                 , timeout = Nothing
                 , tracker = Nothing
@@ -94,9 +96,9 @@ update msg model =
             ( { model
                 | responses =
                     ( input
-                    , case parseIcfpToHuman input of
+                    , case parseIcfp input of
                         Ok res ->
-                            Success res
+                            Success (Debug.toString res)
 
                         Err err ->
                             ParseError err
@@ -105,55 +107,6 @@ update msg model =
               }
             , Cmd.none
             )
-
-
-parseIcfpToHuman : String -> Result String String
-parseIcfpToHuman input =
-    case String.uncons input of
-        Nothing ->
-            Err "Expected input to be non-empty"
-
-        Just ( indicator, rest ) ->
-            case indicator of
-                'T' ->
-                    if String.isEmpty rest then
-                        Ok "true"
-
-                    else
-                        Err "Expected empty string after T"
-
-                'F' ->
-                    if String.isEmpty rest then
-                        Ok "false"
-
-                    else
-                        Err "Expected empty string after F"
-
-                'S' ->
-                    String.foldl
-                        (\char res ->
-                            case res of
-                                Err err ->
-                                    Err err
-
-                                Ok acc ->
-                                    let
-                                        _ =
-                                            Debug.log "char - code" ( char, Char.toCode char )
-                                    in
-                                    case Dict.get (Char.toCode char) charLookup of
-                                        Nothing ->
-                                            Err ("Un-mappable char: " ++ String.fromChar char)
-
-                                        Just mappedChar ->
-                                            Ok (mappedChar :: acc)
-                        )
-                        (Ok [])
-                        rest
-                        |> Result.map (String.fromList >> String.reverse)
-
-                _ ->
-                    Err ("Unsupported indicator: " ++ String.fromChar indicator)
 
 
 {-| Maps 33 - 126 to one of the following chars
@@ -360,3 +313,226 @@ view model =
             ]
         ]
     }
+
+
+
+--
+
+
+type Expression
+    = Boolean Bool
+    | Integer Int
+    | String String
+    | UnaryOp UrOp
+    | BinaryOp BinOp
+    | If
+    | Lambda Int
+    | Variable Int
+
+
+type UrOp
+    = Negate
+    | Not
+    | StringToInt
+    | IntToString
+
+
+type BinOp
+    = Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Modulo
+    | Equal
+    | LessThan
+    | GreaterThan
+    | And
+    | Or
+    | Concat
+    | Take
+    | Drop
+    | Apply
+
+
+parseIcfp : String -> Result String (List Expression)
+parseIcfp input =
+    input
+        |> String.split " "
+        |> List.foldr
+            (\str res ->
+                if String.Extra.isBlank str then
+                    res
+
+                else
+                    case res of
+                        Err err ->
+                            Err err
+
+                        Ok acc ->
+                            case parseIcfpHelper str of
+                                Err err ->
+                                    Err err
+
+                                Ok expr ->
+                                    Ok (expr :: acc)
+            )
+            (Ok [])
+
+
+parseIcfpHelper : String -> Result String Expression
+parseIcfpHelper input =
+    case String.uncons input of
+        Nothing ->
+            Err "Expected input to be non-empty"
+
+        Just ( indicator, rest ) ->
+            case indicator of
+                'T' ->
+                    if String.isEmpty rest then
+                        Ok (Boolean True)
+
+                    else
+                        Err "Expected empty string after T"
+
+                'F' ->
+                    if String.isEmpty rest then
+                        Ok (Boolean False)
+
+                    else
+                        Err "Expected empty string after F"
+
+                'I' ->
+                    if String.isEmpty rest then
+                        Err "Expected a non-empty string after I"
+
+                    else
+                        rest
+                            |> parseInt
+                            |> Integer
+                            |> Ok
+
+                'S' ->
+                    String.foldl
+                        (\char res ->
+                            case res of
+                                Err err ->
+                                    Err err
+
+                                Ok acc ->
+                                    case Dict.get (Char.toCode char) charLookup of
+                                        Nothing ->
+                                            Err ("Un-mappable char: " ++ String.fromChar char)
+
+                                        Just mappedChar ->
+                                            Ok (mappedChar :: acc)
+                        )
+                        (Ok [])
+                        rest
+                        |> Result.map (String.fromList >> String.reverse)
+                        |> Result.map String
+
+                'U' ->
+                    case rest of
+                        "-" ->
+                            Ok (UnaryOp Negate)
+
+                        "!" ->
+                            Ok (UnaryOp Not)
+
+                        "#" ->
+                            Ok (UnaryOp StringToInt)
+
+                        "$" ->
+                            Ok (UnaryOp IntToString)
+
+                        _ ->
+                            Err ("Unsupported unary operator: " ++ rest)
+
+                'B' ->
+                    case rest of
+                        "+" ->
+                            Ok (BinaryOp Add)
+
+                        "-" ->
+                            Ok (BinaryOp Subtract)
+
+                        "*" ->
+                            Ok (BinaryOp Multiply)
+
+                        "/" ->
+                            Ok (BinaryOp Divide)
+
+                        "%" ->
+                            Ok (BinaryOp Modulo)
+
+                        "<" ->
+                            Ok (BinaryOp LessThan)
+
+                        ">" ->
+                            Ok (BinaryOp GreaterThan)
+
+                        "=" ->
+                            Ok (BinaryOp Equal)
+
+                        "|" ->
+                            Ok (BinaryOp Or)
+
+                        "&" ->
+                            Ok (BinaryOp And)
+
+                        "." ->
+                            Ok (BinaryOp Concat)
+
+                        "T" ->
+                            Ok (BinaryOp Take)
+
+                        "D" ->
+                            Ok (BinaryOp Drop)
+
+                        "$" ->
+                            Ok (BinaryOp Apply)
+
+                        _ ->
+                            Err ("Unsupported binary operator: " ++ rest)
+
+                '?' ->
+                    if String.isEmpty rest then
+                        Ok If
+
+                    else
+                        Err ("Unsupported conditional body: " ++ rest)
+
+                'L' ->
+                    if String.isEmpty rest then
+                        Err ("Unsupported lambda body: " ++ rest)
+
+                    else
+                        rest
+                            |> parseInt
+                            |> Lambda
+                            |> Ok
+
+                'v' ->
+                    if String.isEmpty rest then
+                        Err ("Unsupported variable: " ++ rest)
+
+                    else
+                        rest
+                            |> parseInt
+                            |> Variable
+                            |> Ok
+
+                _ ->
+                    Err ("Unsupported indicator: " ++ String.fromChar indicator)
+
+
+parseInt : String -> Int
+parseInt =
+    String.toList
+        >> List.map (Char.toCode >> (\c -> c - 33))
+        >> List.foldr
+            (\val ( total, index ) ->
+                ( total + val * 94 ^ index, index + 1 )
+            )
+            ( 0, 0 )
+        >> Tuple.first
